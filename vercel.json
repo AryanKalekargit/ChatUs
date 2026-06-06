@@ -2,15 +2,24 @@
     "builds": [
         {
             "src": "*.php",
-            "use": "vercel-php@0.6.2"
+            "use": "vercel-php@0.6.2",
+            "config": {
+                "includeFiles": "**"
+            }
         },
         {
             "src": "admin/*.php",
-            "use": "vercel-php@0.6.2"
+            "use": "vercel-php@0.6.2",
+            "config": {
+                "includeFiles": "**"
+            }
         },
         {
             "src": "controllers/*.php",
-            "use": "vercel-php@0.6.2"
+            "use": "vercel-php@0.6.2",
+            "config": {
+                "includeFiles": "**"
+            }
         },
         {
             "src": "assets/**",
