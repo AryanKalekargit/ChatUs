@@ -125,12 +125,11 @@ class Message {
                            u.username as sender_name, u.profile_image
                     FROM " . $this->table_name . " m
                     JOIN users u ON m.sender_id = u.id
-                    LEFT JOIN group_members gm ON m.group_id = gm.group_id AND m.sender_id = gm.user_id
                     WHERE m.group_id = :group_id
-                    ORDER BY m.created_at DESC
-                    LIMIT 200
+                    ORDER BY m.id DESC
+                    LIMIT 100
                   ) as sub
-                  ORDER BY created_at ASC";
+                  ORDER BY id ASC";
 
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(":group_id", $group_id);

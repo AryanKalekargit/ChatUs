@@ -726,61 +726,70 @@ document.addEventListener('DOMContentLoaded', () => {
                                     </div>`;
                                 }
                             } else {
-                                const activeName = activeUserId ? document.getElementById('active-chat-name').innerText : msg.sender_name;
+                                const activeName = activeUserId ? document.getElementById('active-chat-name').innerText : (msg.sender_name || 'User');
                                 const senderNameStr = isSent ? 'You' : activeName;
-                                const fullDate = new Date(msg.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
-                                additionalContent = `<img src="${msg.image_path}" class="img-msg gallery-img mt-2" onclick="openLightbox(this)" data-sender="${senderNameStr}" data-time="${fullDate}">`;
+                                additionalContent = `<img src="${msg.image_path}" class="img-msg gallery-img mt-2" onclick="openLightbox(this)" data-sender="${senderNameStr}" data-time="${time}">`;
                             }
                         }
+
                         if (msg.audio_path) {
-                            additionalContent += renderCustomAudioPlayer(msg.audio_path);
+                            additionalContent += `
+                                <div class="audio-msg-container mt-2 ${isSent ? 'sent' : 'received'}">
+                                    <button class="btn btn-sm btn-icon rounded-circle play-audio-btn" onclick="playAudioMsg('${msg.audio_path}', this)">
+                                        <i class="bi bi-play-fill text-white"></i>
+                                    </button>
+                                    <div class="audio-waveform-mini"></div>
+                                </div>
+                            `;
                         }
 
                         const msgWrapper = document.createElement('div');
-                        msgWrapper.className = `message-wrapper ${isSent ? 'sent' : 'received'}`;
+                        msgWrapper.className = `message-wrapper d-flex ${isSent ? 'justify-content-end' : 'justify-content-start'}`;
 
+                        // Add PFP for received messages in groups
                         if (!isSent) {
                             const pfpWrapper = document.createElement('div');
-                            pfpWrapper.className = 'msg-avatar-container';
+                            pfpWrapper.className = 'msg-avatar-container me-2 align-self-end mb-1';
                             pfpWrapper.innerHTML = getAvatarHtml(msg.sender_name, msg.profile_image, 'xs');
                             msgWrapper.appendChild(pfpWrapper);
                         }
 
                         const msgDiv = document.createElement('div');
                         msgDiv.className = `message-bubble ${isSent ? 'message-sent' : 'message-received'}`;
-                        const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
                         const tickHtml = (isSent && !activeGroupId) ? (msg.status === 'viewed' ? '<i class="bi bi-check-all status-tick tick-viewed"></i>' : '<i class="bi bi-check status-tick tick-sent"></i>') : '';
-
                         const nameColor = getUsernameColor(msg.sender_name);
-                        const senderNameDisplay = (!isSent && activeGroupId) ? `<div class="fw-bold" style="font-size:0.75rem; color: ${nameColor}; margin-bottom: 2px;">${msg.sender_name}</div>` : '';
+                        const senderNameDisplay = (!isSent && activeGroupId) ? `<div class="fw-bold" style="font-size:0.75rem; color: ${nameColor}; margin-bottom: 2px;">${msg.sender_name || 'User'}</div>` : '';
 
                         msgDiv.innerHTML = `
                             ${senderNameDisplay}
-                            ${msg.message ? `<div>${msg.message}</div>` : ''}
+                            ${msg.message && msg.message !== '[Decryption Failed]' ? `<div>${msg.message}</div>` : ''}
+                            ${msg.message === '[Decryption Failed]' ? `<div class="text-muted small italic"><i class="bi bi-shield-lock"></i> ${msg.message}</div>` : ''}
                             ${additionalContent}
-                            <span class="timestamp">${time} ${tickHtml}</span>
+                            <div class="message-info d-flex align-items-center justify-content-end mt-1">
+                                <span class="message-time">${time}</span>
+                                ${tickHtml}
+                            </div>
                         `;
                         msgWrapper.appendChild(msgDiv);
                         chatMessages.appendChild(msgWrapper);
                     });
 
-                    if (isAtBottom) {
-                        chatMessages.scrollTop = chatMessages.scrollHeight;
-                    } else {
-                        chatMessages.scrollTop = oldScrollTop;
-                    }
+                    if (isAtBottom) chatMessages.scrollTop = chatMessages.scrollHeight;
+                    else chatMessages.scrollTop = oldScrollTop;
 
-                    // Play sound if new message arrived and it's not from me
                     if (res.data.length > 0) {
                         const lastMsg = res.data[res.data.length - 1];
-                        if (lastMsg.sender_id != window.CURRENT_USER_ID && currentData !== lastMessagesData) {
+                        if (lastMsg.sender_id != window.CURRENT_USER_ID) {
                             window.playZenithSound('received');
                         }
                     }
                 }
             })
-            .catch(err => console.error(err));
+            .catch(err => {
+                console.error('CRITICAL: Failed to load or parse messages:', err);
+                if (window.showAppToast) window.showAppToast('Sync failed!', 'danger');
+            });
     }
 
     // Audio Recording Logic
