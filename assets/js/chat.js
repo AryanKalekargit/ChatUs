@@ -305,7 +305,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Helper for Avatars (Initials fallback)
-    function getAvatarHtml(name, imageUrl, sizeClass = '') {
+    window.getAvatarHtml = function (name, imageUrl, sizeClass = '') {
         if (imageUrl && imageUrl !== 'assets/images/default.png') {
             return `<img src="${imageUrl}" class="avatar ${sizeClass}">`;
         }
@@ -314,13 +314,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const charCodeSum = (name || '').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
         const color = colors[charCodeSum % colors.length];
         return `<div class="avatar-initials ${sizeClass}" style="background-color: ${color}">${initials}</div>`;
-    }
+    };
 
-    function getUsernameColor(name) {
+    window.getUsernameColor = function (name) {
         const colors = ['#00f2ff', '#ff00ff', '#00ff66', '#ff9900', '#7700ff', '#ff3300'];
         const charCodeSum = (name || '').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
         return colors[charCodeSum % colors.length];
-    }
+    };
 
     // Groups logic
     const createGroupModal = new bootstrap.Modal(document.getElementById('createGroupModal'));
@@ -481,39 +481,44 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // Load Users for Group Creation (Only from users you have messaged)
+    // Load Users for Group Creation (Trying to show all users if no recent ones)
     function loadUsersForGroup() {
         groupMembersList.innerHTML = '<div class="text-center p-3 text-muted"><div class="spinner-border spinner-border-sm text-info me-2"></div>Loading contacts...</div>';
 
-        fetch('controllers/MessageController.php?action=get_recent_conversations')
-            .then(res => res.json())
+        fetch('controllers/MessageController.php?action=get_users') // Use get_users instead of get_recent_conversations to show everyone
+            .then(res => {
+                if (!res.ok) throw new Error('Network response was not ok');
+                return res.json();
+            })
             .then(res => {
                 if (res.status === 'success') {
                     groupMembersList.innerHTML = '';
-                    const userChats = res.data.filter(c => c.type === 'user');
+                    const users = res.data;
 
-                    if (userChats.length === 0) {
-                        groupMembersList.innerHTML = '<div class="text-muted small p-3 text-center">No chat history found. You can only add users you have messaged with.</div>';
+                    if (!users || users.length === 0) {
+                        groupMembersList.innerHTML = '<div class="text-muted small p-3 text-center">No other users found on the platform.</div>';
                         return;
                     }
 
-                    userChats.forEach(chat => {
+                    users.forEach(u => {
                         const memberCheckbox = document.createElement('div');
                         memberCheckbox.className = 'form-check mb-2 d-flex align-items-center';
                         memberCheckbox.innerHTML = `
-                            <input class="form-check-input group-member-checkbox me-2" type="checkbox" value="${chat.target_id}" id="user-sel-${chat.target_id}">
-                            <label class="form-check-label d-flex align-items-center cursor-pointer" for="user-sel-${chat.target_id}">
-                                ${getAvatarHtml(chat.user_name, chat.user_image, 'sm')}
-                                <span class="ms-1">${chat.user_name}</span>
+                            <input class="form-check-input group-member-checkbox me-2" type="checkbox" value="${u.id}" id="user-sel-${u.id}">
+                            <label class="form-check-label d-flex align-items-center cursor-pointer" for="user-sel-${u.id}">
+                                ${window.getAvatarHtml(u.username, u.profile_image, 'sm')}
+                                <span class="ms-1">${u.username}</span>
                             </label>
                         `;
                         groupMembersList.appendChild(memberCheckbox);
                     });
+                } else {
+                    throw new Error(res.message || 'Unknown error');
                 }
             })
             .catch(e => {
                 console.error("Error populating contact list for group", e);
-                groupMembersList.innerHTML = '<div class="text-danger small p-3 text-center">Failed to load contacts.</div>';
+                groupMembersList.innerHTML = `<div class="text-danger small p-3 text-center">Failed to load contacts: ${e.message}</div>`;
             });
     }
 
@@ -670,8 +675,12 @@ document.addEventListener('DOMContentLoaded', () => {
             : `controllers/MessageController.php?action=fetch_messages&receiver_id=${activeUserId}`;
 
         fetch(targetUrl)
-            .then(res => res.json())
             .then(res => {
+                if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                return res.json();
+            })
+            .then(res => {
+                console.log('DEBUG: Messages received', res);
                 if (res.status === 'success') {
                     const currentData = JSON.stringify(res.data);
                     if (currentData === lastMessagesData) return; // Abort DOM destruction if no changes
@@ -684,107 +693,110 @@ document.addEventListener('DOMContentLoaded', () => {
                     chatMessages.innerHTML = '';
                     let lastDateString = null;
 
+                    if (!Array.isArray(res.data)) {
+                        console.error('DEBUG: res.data is not an array', res.data);
+                        return;
+                    }
+
                     res.data.forEach(msg => {
-                        const msgDate = new Date(msg.created_at);
-                        const dateString = msgDate.toLocaleDateString([], { dateStyle: 'long' });
-
-                        if (dateString !== lastDateString) {
-                            const dateDivider = document.createElement('div');
-                            dateDivider.className = 'date-divider';
-
-                            // Humanize "Today" and "Yesterday"
-                            const today = new Date().toLocaleDateString([], { dateStyle: 'long' });
-                            const yesterdayDate = new Date();
-                            yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-                            const yesterday = yesterdayDate.toLocaleDateString([], { dateStyle: 'long' });
-
-                            let displayDate = dateString;
-                            if (dateString === today) displayDate = 'Today';
-                            else if (dateString === yesterday) displayDate = 'Yesterday';
-
-                            dateDivider.innerHTML = `<span class="date-pill">${displayDate}</span>`;
-                            chatMessages.appendChild(dateDivider);
-                            lastDateString = dateString;
-                        }
-
-                        // For groups, sender_id is not me, but it could be anyone else
-                        // For direct msgs, if sender_id == me, it's sent.
-                        const isSent = msg.sender_id == window.CURRENT_USER_ID;
-
-                        // Safety check for date
-                        let time = '00:00';
                         try {
+                            const msgDate = new Date(msg.created_at);
+                            const dateString = msgDate.toLocaleDateString([], { dateStyle: 'long' });
+
+                            if (dateString !== lastDateString) {
+                                const dateDivider = document.createElement('div');
+                                dateDivider.className = 'date-divider';
+
+                                // Humanize "Today" and "Yesterday"
+                                const today = new Date().toLocaleDateString([], { dateStyle: 'long' });
+                                const yesterdayDate = new Date();
+                                yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+                                const yesterday = yesterdayDate.toLocaleDateString([], { dateStyle: 'long' });
+
+                                let displayDate = dateString;
+                                if (dateString === today) displayDate = 'Today';
+                                else if (dateString === yesterday) displayDate = 'Yesterday';
+
+                                dateDivider.innerHTML = `<span class="date-pill">${displayDate}</span>`;
+                                chatMessages.appendChild(dateDivider);
+                                lastDateString = dateString;
+                            }
+
+                            // For groups, sender_id is not me, but it could be anyone else
+                            // For direct msgs, if sender_id == me, it's sent.
+                            const isSent = msg.sender_id == window.CURRENT_USER_ID;
+
+                            // Safety check for date
+                            let time = '00:00';
                             if (msg.created_at) {
                                 const d = new Date(msg.created_at);
                                 if (!isNaN(d.getTime())) {
                                     time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                                 }
                             }
-                        } catch (e) { console.error('Date parsing error', e); }
 
-                        let additionalContent = '';
-                        if (msg.image_path) {
-                            if (msg.once_view == 1) {
-                                if (msg.viewed == 1 && !isSent) {
-                                    additionalContent = `<div class="text-muted fst-italic"><i class="bi bi-eye-slash"></i> Image viewed</div>`;
-                                } else if (isSent) {
-                                    additionalContent = `<div class="view-once-pill mt-2" style="font-size: 0.85rem;"><i class="bi bi-shield-lock-fill"></i> View Once Photo</div>`;
+                            let additionalContent = '';
+                            if (msg.image_path) {
+                                if (msg.once_view == 1) {
+                                    if (msg.viewed == 1 && !isSent) {
+                                        additionalContent = `<div class="text-muted fst-italic"><i class="bi bi-eye-slash"></i> Image viewed</div>`;
+                                    } else if (isSent) {
+                                        additionalContent = `<div class="view-once-pill mt-2" style="font-size: 0.85rem;"><i class="bi bi-shield-lock-fill"></i> View Once Photo</div>`;
+                                    } else {
+                                        additionalContent = `<div class="position-relative mt-2">
+                                            <span class="once-view-badge">1x</span>
+                                            <button class="btn btn-sm btn-outline-info" onclick="window.viewOnceImage(this, ${msg.id}, '${msg.image_path}')">
+                                                <i class="bi bi-image"></i> View Image
+                                            </button>
+                                        </div>`;
+                                    }
                                 } else {
-                                    additionalContent = `<div class="position-relative mt-2">
-                                        <span class="once-view-badge">1x</span>
-                                        <button class="btn btn-sm btn-outline-info" onclick="viewOnceImage(this, ${msg.id}, '${msg.image_path}')">
-                                            <i class="bi bi-image"></i> View Image
-                                        </button>
-                                    </div>`;
+                                    const senderNameStr = isSent ? 'You' : (msg.sender_name || 'User');
+                                    additionalContent = `<img src="${msg.image_path}" class="img-msg gallery-img mt-2" onclick="window.openLightbox(this)" data-sender="${senderNameStr}" data-time="${time}">`;
                                 }
-                            } else {
-                                const activeName = activeUserId ? document.getElementById('active-chat-name').innerText : (msg.sender_name || 'User');
-                                const senderNameStr = isSent ? 'You' : activeName;
-                                additionalContent = `<img src="${msg.image_path}" class="img-msg gallery-img mt-2" onclick="openLightbox(this)" data-sender="${senderNameStr}" data-time="${time}">`;
                             }
-                        }
 
-                        if (msg.audio_path) {
-                            additionalContent += `
-                                <div class="audio-msg-container mt-2 ${isSent ? 'sent' : 'received'}">
-                                    <button class="btn btn-sm btn-icon rounded-circle play-audio-btn" onclick="playAudioMsg('${msg.audio_path}', this)">
-                                        <i class="bi bi-play-fill text-white"></i>
-                                    </button>
-                                    <div class="audio-waveform-mini"></div>
+                            if (msg.audio_path) {
+                                additionalContent += `
+                                    <div class="audio-msg-container mt-2 ${isSent ? 'sent' : 'received'}">
+                                        ${window.renderCustomAudioPlayer(msg.audio_path)}
+                                    </div>
+                                `;
+                            }
+
+                            const msgWrapper = document.createElement('div');
+                            msgWrapper.className = `message-wrapper d-flex ${isSent ? 'justify-content-end' : 'justify-content-start'}`;
+
+                            // Add PFP for received messages in groups
+                            if (!isSent) {
+                                const pfpWrapper = document.createElement('div');
+                                pfpWrapper.className = 'msg-avatar-container me-2 align-self-end mb-1';
+                                pfpWrapper.innerHTML = window.getAvatarHtml(msg.sender_name, msg.profile_image, 'xs');
+                                msgWrapper.appendChild(pfpWrapper);
+                            }
+
+                            const msgDiv = document.createElement('div');
+                            msgDiv.className = `message-bubble ${isSent ? 'message-sent' : 'message-received'}`;
+
+                            const tickHtml = (isSent && !activeGroupId) ? (msg.status === 'viewed' ? '<i class="bi bi-check-all status-tick tick-viewed"></i>' : '<i class="bi bi-check status-tick tick-sent"></i>') : '';
+                            const nameColor = window.getUsernameColor(msg.sender_name);
+                            const senderNameDisplay = (!isSent && activeGroupId) ? `<div class="fw-bold" style="font-size:0.75rem; color: ${nameColor}; margin-bottom: 2px;">${msg.sender_name || 'User'}</div>` : '';
+
+                            msgDiv.innerHTML = `
+                                ${senderNameDisplay}
+                                ${msg.message && msg.message !== '[Decryption Failed]' ? `<div>${msg.message}</div>` : ''}
+                                ${msg.message === '[Decryption Failed]' ? `<div class="text-muted small italic"><i class="bi bi-shield-lock"></i> ${msg.message}</div>` : ''}
+                                ${additionalContent}
+                                <div class="message-info d-flex align-items-center justify-content-end mt-1">
+                                    <span class="message-time">${time}</span>
+                                    ${tickHtml}
                                 </div>
                             `;
+                            msgWrapper.appendChild(msgDiv);
+                            chatMessages.appendChild(msgWrapper);
+                        } catch (loopErr) {
+                            console.error('DEBUG: Error in message loop for msg', msg, loopErr);
                         }
-
-                        const msgWrapper = document.createElement('div');
-                        msgWrapper.className = `message-wrapper d-flex ${isSent ? 'justify-content-end' : 'justify-content-start'}`;
-
-                        // Add PFP for received messages in groups
-                        if (!isSent) {
-                            const pfpWrapper = document.createElement('div');
-                            pfpWrapper.className = 'msg-avatar-container me-2 align-self-end mb-1';
-                            pfpWrapper.innerHTML = getAvatarHtml(msg.sender_name, msg.profile_image, 'xs');
-                            msgWrapper.appendChild(pfpWrapper);
-                        }
-
-                        const msgDiv = document.createElement('div');
-                        msgDiv.className = `message-bubble ${isSent ? 'message-sent' : 'message-received'}`;
-
-                        const tickHtml = (isSent && !activeGroupId) ? (msg.status === 'viewed' ? '<i class="bi bi-check-all status-tick tick-viewed"></i>' : '<i class="bi bi-check status-tick tick-sent"></i>') : '';
-                        const nameColor = getUsernameColor(msg.sender_name);
-                        const senderNameDisplay = (!isSent && activeGroupId) ? `<div class="fw-bold" style="font-size:0.75rem; color: ${nameColor}; margin-bottom: 2px;">${msg.sender_name || 'User'}</div>` : '';
-
-                        msgDiv.innerHTML = `
-                            ${senderNameDisplay}
-                            ${msg.message && msg.message !== '[Decryption Failed]' ? `<div>${msg.message}</div>` : ''}
-                            ${msg.message === '[Decryption Failed]' ? `<div class="text-muted small italic"><i class="bi bi-shield-lock"></i> ${msg.message}</div>` : ''}
-                            ${additionalContent}
-                            <div class="message-info d-flex align-items-center justify-content-end mt-1">
-                                <span class="message-time">${time}</span>
-                                ${tickHtml}
-                            </div>
-                        `;
-                        msgWrapper.appendChild(msgDiv);
-                        chatMessages.appendChild(msgWrapper);
                     });
 
                     if (isAtBottom) chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -800,6 +812,8 @@ document.addEventListener('DOMContentLoaded', () => {
             })
             .catch(err => {
                 console.error('CRITICAL: Failed to load or parse messages:', err);
+                // Add more details to the console to help debug
+                if (err.stack) console.error('Stack trace:', err.stack);
                 if (window.showAppToast) window.showAppToast('Sync failed!', 'danger');
             });
     }
@@ -940,9 +954,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Custom Audio Player v2 Renderer: Scrubber & Dual Timer
-    function renderCustomAudioPlayer(audioPath) {
+    window.renderCustomAudioPlayer = function (audioPath) {
         const uniqueId = 'audio-' + Math.random().toString(36).substr(2, 9);
-        setTimeout(() => drawStaticWaveform(`${uniqueId}-canvas`), 50);
+        setTimeout(() => window.drawStaticWaveform(`${uniqueId}-canvas`), 50);
         return `
             <div class="custom-audio-player" id="${uniqueId}-container">
                 <div class="player-main-controls">
@@ -966,7 +980,7 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
     }
 
-    function drawStaticWaveform(canvasId) {
+    window.drawStaticWaveform = function (canvasId) {
         const canvas = document.getElementById(canvasId);
         if (!canvas) return;
         const ctx = canvas.getContext('2d');

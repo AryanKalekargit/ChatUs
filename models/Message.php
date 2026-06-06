@@ -124,7 +124,7 @@ class Message {
                            m.image_path, m.audio_path, m.once_view, m.viewed, m.status, m.created_at,
                            u.username as sender_name, u.profile_image
                     FROM " . $this->table_name . " m
-                    JOIN users u ON m.sender_id = u.id
+                    LEFT JOIN users u ON m.sender_id = u.id
                     WHERE m.group_id = :group_id
                     ORDER BY m.id DESC
                     LIMIT 100
