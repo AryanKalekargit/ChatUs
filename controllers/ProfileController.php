@@ -4,6 +4,7 @@ require_once dirname(__DIR__) . '/config/session.php';
 header('Content-Type: application/json');
 
 require_once dirname(__DIR__) . '/config/database.php';
+require_once dirname(__DIR__) . '/config/storage.php';
 require_once dirname(__DIR__) . '/models/User.php';
 
 if (!isset($_SESSION['user_id'])) {
@@ -48,14 +49,13 @@ switch ($action) {
         if (isset($_FILES['profile_image']) && $_FILES['profile_image']['error'] === UPLOAD_ERR_OK) {
             $fileObj = $_FILES['profile_image'];
             $allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
-            $dir = dirname(__DIR__) . "/uploads/profiles/";
-            if (!is_dir($dir)) mkdir($dir, 0777, true);
             
             if ($fileObj['size'] <= 5242880 && in_array($fileObj['type'], $allowedTypes)) { // 5MB
                 $ext = pathinfo($fileObj['name'], PATHINFO_EXTENSION);
-                $filename = 'user_' . $_SESSION['user_id'] . '_' . time() . '.' . $ext;
-                if (move_uploaded_file($fileObj['tmp_name'], $dir . $filename)) {
-                    $image_path = "uploads/profiles/" . $filename;
+                $destPath = 'profiles/user_' . $_SESSION['user_id'] . '_' . time() . '.' . $ext;
+                $uploaded = uploadToSupabase($fileObj['tmp_name'], 'chatus-media', $destPath);
+                if ($uploaded) {
+                    $image_path = $uploaded;
                 }
             }
         }

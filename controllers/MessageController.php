@@ -4,6 +4,7 @@ require_once dirname(__DIR__) . '/config/session.php';
 header('Content-Type: application/json');
 
 require_once dirname(__DIR__) . '/config/database.php';
+require_once dirname(__DIR__) . '/config/storage.php';
 require_once dirname(__DIR__) . '/models/Message.php';
 require_once dirname(__DIR__) . '/models/User.php';
 
@@ -72,23 +73,17 @@ switch ($action) {
         $audio_path = null;
         
         function handleUpload($fileObj, $type) {
-            $allowedTypes = $type === 'image' 
-                ? ['image/jpeg', 'image/png', 'image/jpg'] 
-                : ['audio/webm', 'audio/mp3', 'audio/wav', 'audio/ogg'];
-            
-            $dir = dirname(__DIR__) . "/uploads/{$type}s/";
-            if (!is_dir($dir)) mkdir($dir, 0777, true);
-            
+            $allowedTypes = $type === 'image'
+                ? ['image/jpeg', 'image/png', 'image/jpg']
+                : ['audio/webm', 'audio/mp3', 'audio/wav', 'audio/ogg', 'audio/mpeg'];
+
             if ($fileObj['error'] === UPLOAD_ERR_OK && $fileObj['size'] <= 10485760) { // 10MB
-                if (in_array($fileObj['type'], $allowedTypes)) {
-                    $ext = pathinfo($fileObj['name'], PATHINFO_EXTENSION);
-                    if ($type === 'audio' && !$ext) $ext = 'webm'; // default for MediaRecorder blobs
-                    
-                    $filename = uniqid() . '_' . time() . '.' . $ext;
-                    if (move_uploaded_file($fileObj['tmp_name'], $dir . $filename)) {
-                        return "uploads/{$type}s/" . $filename;
-                    }
-                }
+                $ext = pathinfo($fileObj['name'], PATHINFO_EXTENSION);
+                if ($type === 'audio' && !$ext) $ext = 'webm';
+
+                $destPath = "{$type}s/" . uniqid() . '_' . time() . '.' . $ext;
+                $uploaded = uploadToSupabase($fileObj['tmp_name'], 'chatus-media', $destPath);
+                return $uploaded ?: null;
             }
             return null;
         }
