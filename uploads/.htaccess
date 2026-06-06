@@ -1,0 +1,6 @@
+# Disable PHP execution in uploads directory
+php_flag engine off
+
+<FilesMatch "\.(php|php[34578]|phtml|pl|py|jsp|asp|htm|html|shtml|sh|cgi)$">
+    Require all denied
+</FilesMatch>

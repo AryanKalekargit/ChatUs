@@ -1,0 +1,12 @@
+# Disable directory browsing
+Options -Indexes
+
+# Protect hidden files and directories
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+# Protect sensitive config files
+<FilesMatch "^(database\.php|database\.sql)$">
+    Require all denied
+</FilesMatch>
