@@ -706,9 +706,21 @@ document.addEventListener('DOMContentLoaded', () => {
                             chatMessages.appendChild(dateDivider);
                             lastDateString = dateString;
                         }
+
                         // For groups, sender_id is not me, but it could be anyone else
                         // For direct msgs, if sender_id == me, it's sent.
                         const isSent = msg.sender_id == window.CURRENT_USER_ID;
+
+                        // Safety check for date
+                        let time = '00:00';
+                        try {
+                            if (msg.created_at) {
+                                const d = new Date(msg.created_at);
+                                if (!isNaN(d.getTime())) {
+                                    time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                }
+                            }
+                        } catch (e) { console.error('Date parsing error', e); }
 
                         let additionalContent = '';
                         if (msg.image_path) {
