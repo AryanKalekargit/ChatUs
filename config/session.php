@@ -59,4 +59,3 @@ session_set_save_handler(new DatabaseSessionHandler(), true);
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
-?>

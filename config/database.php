@@ -42,6 +42,4 @@ class Database {
             throw $exception;
         }
         return $this->conn;
-    }
 }
-?>
