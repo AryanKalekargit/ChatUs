@@ -48,7 +48,7 @@ class Group {
     }
 
     public function getUserGroups($user_id) {
-        $query = "SELECT g.id, g.name, g.admin_id, g.created_at 
+        $query = "SELECT g.id, g.name, g.admin_id, g.group_image, g.created_at 
                   FROM " . $this->table_name . " g
                   JOIN " . $this->members_table . " gm ON g.id = gm.group_id
                   WHERE gm.user_id = :user_id";

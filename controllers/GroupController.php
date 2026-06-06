@@ -105,24 +105,38 @@ switch ($action) {
             exit;
         }
 
-        $target_dir = "../uploads/images/";
-        if (!file_exists($target_dir)) {
-            mkdir($target_dir, 0777, true);
+        $file = $_FILES['group_image'];
+        $allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+        $maxSize = 2097152; // 2MB
+
+        if ($file['error'] !== UPLOAD_ERR_OK) {
+            echo json_encode(['status' => 'error', 'message' => 'Upload error: ' . $file['error']]);
+            exit;
         }
 
-        $file_name = time() . '_' . basename($_FILES["group_image"]["name"]);
-        $target_file = $target_dir . $file_name;
-        $db_path = "uploads/images/" . $file_name;
+        if ($file['size'] > $maxSize) {
+            echo json_encode(['status' => 'error', 'message' => 'File too large (Max 2MB)']);
+            exit;
+        }
 
-        if (move_uploaded_file($_FILES["group_image"]["tmp_name"], $target_file)) {
-            if ($groupModel->updateImage($group_id, $db_path)) {
-                echo json_encode(['status' => 'success', 'message' => 'Image updated', 'path' => $db_path]);
-            } else {
-                echo json_encode(['status' => 'error', 'message' => 'Failed to update Database record']);
-            }
+        if (!in_array($file['type'], $allowedTypes)) {
+            echo json_encode(['status' => 'error', 'message' => 'Invalid file type. Only JPG, PNG allowed.']);
+            exit;
+        }
+
+        $fileData = file_get_contents($file['tmp_name']);
+        if ($fileData === false) {
+            echo json_encode(['status' => 'error', 'message' => 'Failed to read file']);
+            exit;
+        }
+
+        $base64 = base64_encode($fileData);
+        $db_path = "data:" . $file['type'] . ";base64," . $base64;
+
+        if ($groupModel->updateImage($group_id, $db_path)) {
+            echo json_encode(['status' => 'success', 'message' => 'Image updated', 'path' => $db_path]);
         } else {
-            $error = error_get_last();
-            echo json_encode(['status' => 'error', 'message' => 'Failed to move uploaded file: ' . ($error['message'] ?? 'Unknown error')]);
+            echo json_encode(['status' => 'error', 'message' => 'Failed to update Database record']);
         }
         break;
 
