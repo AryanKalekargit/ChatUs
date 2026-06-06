@@ -1,6 +1,6 @@
 <?php
 // controllers/ProfileController.php
-session_start();
+require_once dirname(__DIR__) . '/config/session.php';
 header('Content-Type: application/json');
 
 require_once dirname(__DIR__) . '/config/database.php';

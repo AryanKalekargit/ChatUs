@@ -1,6 +1,6 @@
 <?php
 // middleware/auth.php
-session_start();
+require_once dirname(__DIR__) . '/config/session.php';
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: auth.php");
