@@ -12,5 +12,11 @@
             "src": "controllers/*.php",
             "use": "vercel-php@0.6.2"
         }
+    ],
+    "crons": [
+        {
+            "path": "/keep_alive.php",
+            "schedule": "0 12 */3 * *"
+        }
     ]
 }
