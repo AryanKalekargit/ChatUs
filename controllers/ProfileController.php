@@ -4,7 +4,6 @@ require_once dirname(__DIR__) . '/config/session.php';
 header('Content-Type: application/json');
 
 require_once dirname(__DIR__) . '/config/database.php';
-require_once dirname(__DIR__) . '/config/storage.php';
 require_once dirname(__DIR__) . '/models/User.php';
 
 if (!isset($_SESSION['user_id'])) {
@@ -50,12 +49,11 @@ switch ($action) {
             $fileObj = $_FILES['profile_image'];
             $allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
             
-            if ($fileObj['size'] <= 5242880 && in_array($fileObj['type'], $allowedTypes)) { // 5MB
-                $ext = pathinfo($fileObj['name'], PATHINFO_EXTENSION);
-                $destPath = 'profiles/user_' . $_SESSION['user_id'] . '_' . time() . '.' . $ext;
-                $uploaded = uploadToSupabase($fileObj['tmp_name'], 'chatus-media', $destPath);
-                if ($uploaded) {
-                    $image_path = $uploaded;
+            if ($fileObj['size'] <= 2097152 && in_array($fileObj['type'], $allowedTypes)) { // 2MB
+                $imageData = file_get_contents($fileObj['tmp_name']);
+                if ($imageData !== false) {
+                    $base64 = base64_encode($imageData);
+                    $image_path = "data:{$fileObj['type']};base64,{$base64}";
                 }
             }
         }

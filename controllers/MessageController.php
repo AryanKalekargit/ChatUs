@@ -4,7 +4,6 @@ require_once dirname(__DIR__) . '/config/session.php';
 header('Content-Type: application/json');
 
 require_once dirname(__DIR__) . '/config/database.php';
-require_once dirname(__DIR__) . '/config/storage.php';
 require_once dirname(__DIR__) . '/models/Message.php';
 require_once dirname(__DIR__) . '/models/User.php';
 
@@ -77,13 +76,18 @@ switch ($action) {
                 ? ['image/jpeg', 'image/png', 'image/jpg']
                 : ['audio/webm', 'audio/mp3', 'audio/wav', 'audio/ogg', 'audio/mpeg'];
 
-            if ($fileObj['error'] === UPLOAD_ERR_OK && $fileObj['size'] <= 10485760) { // 10MB
-                $ext = pathinfo($fileObj['name'], PATHINFO_EXTENSION);
-                if ($type === 'audio' && !$ext) $ext = 'webm';
+            $maxSize = $type === 'image' ? 2097152 : 5242880; // 2MB images, 5MB audio
 
-                $destPath = "{$type}s/" . uniqid() . '_' . time() . '.' . $ext;
-                $uploaded = uploadToSupabase($fileObj['tmp_name'], 'chatus-media', $destPath);
-                return $uploaded ?: null;
+            if ($fileObj['error'] === UPLOAD_ERR_OK && $fileObj['size'] <= $maxSize) {
+                $mimeType = $fileObj['type'];
+                // Fallback MIME for audio blobs lacking type
+                if ($type === 'audio' && empty($mimeType)) $mimeType = 'audio/webm';
+
+                $fileData = file_get_contents($fileObj['tmp_name']);
+                if ($fileData !== false) {
+                    $base64 = base64_encode($fileData);
+                    return "data:{$mimeType};base64,{$base64}";
+                }
             }
             return null;
         }
