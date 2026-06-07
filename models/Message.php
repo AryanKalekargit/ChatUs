@@ -182,7 +182,7 @@ class Message {
                         FROM group_members gm 
                         JOIN users u_on ON gm.user_id = u_on.id 
                         WHERE gm.group_id = c.target_id 
-                        AND u_on.last_active > (NOW() - INTERVAL '5 minutes')
+                        AND u_on.last_active > DATE_SUB(NOW(), INTERVAL 5 MINUTE)
                     )
                     ELSE 0
                 END AS online_count

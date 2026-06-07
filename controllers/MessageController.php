@@ -138,6 +138,7 @@ switch ($action) {
         }
 
         if ($group_id) {
+            error_log("DEBUG: Fetching messages for group_id: " . $group_id);
             $stmt = $messageModel->getGroupConversation($group_id);
         } else {
             $messageModel->markDirectMessagesViewed($receiver_id, $_SESSION['user_id']);
@@ -155,6 +156,7 @@ switch ($action) {
             unset($row['encrypted_message']); // Do not send encrypted string to JS
             $messages[] = $row;
         }
+        error_log("DEBUG: Found " . count($messages) . " messages for target.");
         
         echo json_encode(['status' => 'success', 'data' => $messages]);
         break;

@@ -145,20 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Toggle Profile Panel from Chat Header
-    document.getElementById('chat-header-info')?.addEventListener('click', (e) => {
-        // Don't trigger if clicking the back button
-        if (e.target.closest('#mobile-back-btn')) return;
-
-        const panel = document.getElementById('right-profile-panel');
-        if (panel.classList.contains('d-none')) {
-            panel.classList.remove('d-none');
-            panel.classList.add('d-flex');
-        } else {
-            panel.classList.add('d-none');
-            panel.classList.remove('d-flex');
-        }
-    });
+    // Profile panel is toggled from the comprehensive handler below (at chat-header-info click)
 
     // Dynamic Theme Helper (Wow Factor)
     function applyDynamicTheme(name, imageUrl) {
@@ -481,11 +468,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // Load Users for Group Creation (Trying to show all users if no recent ones)
+    // Load Users for Group Creation (Only show users I have interacted with)
     function loadUsersForGroup() {
         groupMembersList.innerHTML = '<div class="text-center p-3 text-muted"><div class="spinner-border spinner-border-sm text-info me-2"></div>Loading contacts...</div>';
 
-        fetch('controllers/MessageController.php?action=get_users') // Use get_users instead of get_recent_conversations to show everyone
+        fetch('controllers/MessageController.php?action=get_recent_conversations')
             .then(res => {
                 if (!res.ok) throw new Error('Network response was not ok');
                 return res.json();
@@ -493,10 +480,11 @@ document.addEventListener('DOMContentLoaded', () => {
             .then(res => {
                 if (res.status === 'success') {
                     groupMembersList.innerHTML = '';
-                    const users = res.data;
+                    // Filter for users only (excluding group conversations from this list)
+                    const users = res.data.filter(item => item.type === 'user');
 
                     if (!users || users.length === 0) {
-                        groupMembersList.innerHTML = '<div class="text-muted small p-3 text-center">No other users found on the platform.</div>';
+                        groupMembersList.innerHTML = '<div class="text-muted small p-3 text-center">No recent interactions found. Start a chat first!</div>';
                         return;
                     }
 
@@ -1382,8 +1370,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Right Profile Panel Click Handler
     const rightProfilePanel = document.getElementById('right-profile-panel');
-    document.getElementById('chat-header-info')?.addEventListener('click', () => {
+    document.getElementById('chat-header-info')?.addEventListener('click', (e) => {
+        // Don't trigger if clicking the back button
+        if (e.target.closest('#mobile-back-btn')) return;
         if (!activeUserId && !activeGroupId) return;
+
+        // Toggle: if already open, close it
+        if (!rightProfilePanel.classList.contains('d-none')) {
+            rightProfilePanel.classList.add('d-none');
+            rightProfilePanel.classList.remove('d-flex');
+            return;
+        }
 
         rightProfilePanel.classList.remove('d-none');
         rightProfilePanel.classList.add('d-flex');
@@ -1430,9 +1427,11 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (activeGroupId) {
             // Group context
             membersSection.classList.remove('d-none');
-            groupImgOverlay.classList.remove('d-none');
-            groupImgOverlay.classList.add('d-flex');
-            editGroupNameContainer.classList.remove('d-none');
+
+            // Hide admin-only controls by default — will be revealed after role check
+            groupImgOverlay.classList.remove('d-flex');
+            groupImgOverlay.classList.add('d-none');
+            editGroupNameContainer.classList.add('d-none');
 
             // Hide section for group info as it's redundant
             document.getElementById('profile-panel-common-groups-section')?.classList.add('d-none');
@@ -1462,6 +1461,17 @@ document.addEventListener('DOMContentLoaded', () => {
                         let currentUserRole = 'member';
                         const me = res.data.members.find(m => m.id == window.CURRENT_USER_ID);
                         if (me) currentUserRole = me.role;
+
+                        // Show admin-only controls only if user is owner
+                        if (currentUserRole === 'owner') {
+                            groupImgOverlay.classList.remove('d-none');
+                            groupImgOverlay.classList.add('d-flex');
+                            editGroupNameContainer.classList.remove('d-none');
+                        } else {
+                            groupImgOverlay.classList.remove('d-flex');
+                            groupImgOverlay.classList.add('d-none');
+                            editGroupNameContainer.classList.add('d-none');
+                        }
 
                         let addMemberBtnHtml = '';
                         if (currentUserRole === 'owner') {

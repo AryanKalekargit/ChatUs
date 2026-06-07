@@ -65,18 +65,17 @@ class Group {
                          CASE WHEN g.admin_id = u.id THEN 'owner' ELSE 'member' END as role,
                          g.name as group_name, g.group_image, u.last_active, gm.nickname
                   FROM (
-                      SELECT user_id, group_id, nickname FROM group_members WHERE group_id = :group_id
+                      SELECT user_id, group_id, nickname FROM group_members WHERE group_id = ?
                       UNION
-                      SELECT admin_id as user_id, id as group_id, NULL as nickname FROM " . $this->table_name . " WHERE id = :group_id
+                      SELECT admin_id as user_id, id as group_id, NULL as nickname FROM " . $this->table_name . " WHERE id = ?
                   ) gm
                   JOIN users u ON gm.user_id = u.id
                   JOIN " . $this->table_name . " g ON gm.group_id = g.id
-                  WHERE gm.group_id = :group_id
+                  WHERE gm.group_id = ?
                   GROUP BY u.id, g.name, g.group_image, g.admin_id, u.username, u.profile_image, u.last_active, gm.nickname
                   ORDER BY role DESC, u.username ASC";
         $stmt = $this->conn->prepare($query);
-        $stmt->bindParam(":group_id", $group_id);
-        $stmt->execute();
+        $stmt->execute([$group_id, $group_id, $group_id]);
         
         return $stmt;
     }

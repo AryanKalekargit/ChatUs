@@ -91,6 +91,11 @@ switch ($action) {
             exit;
         }
         
+        if (!$groupModel->isOwner($group_id, $_SESSION['user_id'])) {
+            echo json_encode(['status' => 'error', 'message' => 'Only the Group Owner can update group details']);
+            exit;
+        }
+        
         if ($groupModel->updateName($group_id, $name)) {
             echo json_encode(['status' => 'success', 'message' => 'Group name updated']);
         } else {
@@ -102,6 +107,11 @@ switch ($action) {
         $group_id = $_POST['group_id'] ?? null;
         if (!$group_id || !isset($_FILES['group_image'])) {
             echo json_encode(['status' => 'error', 'message' => 'Group ID and Image are required']);
+            exit;
+        }
+
+        if (!$groupModel->isOwner($group_id, $_SESSION['user_id'])) {
+            echo json_encode(['status' => 'error', 'message' => 'Only the Group Owner can update group details']);
             exit;
         }
 
@@ -140,10 +150,15 @@ switch ($action) {
         }
         break;
 
+
     case 'remove_group_image':
         $group_id = $_POST['group_id'] ?? null;
         if (!$group_id) {
             echo json_encode(['status' => 'error', 'message' => 'Group ID required']);
+            exit;
+        }
+        if (!$groupModel->isOwner($group_id, $_SESSION['user_id'])) {
+            echo json_encode(['status' => 'error', 'message' => 'Only the Group Owner can update group details']);
             exit;
         }
         if ($groupModel->updateImage($group_id, null)) {
