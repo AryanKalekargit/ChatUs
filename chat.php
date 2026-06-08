@@ -203,6 +203,21 @@ $theme = $currentUser['theme_preference'] ?? 'dark';
             <div class="input-wrapper position-relative">
                 <button class="btn btn-icon p-0 me-2" id="emoji-btn" type="button"><i class="bi bi-emoji-smile"></i></button>
                 <input type="text" id="message-input" class="chat-input" placeholder="Type an encrypted message...">
+                        <span>🦾</span><span>🖕</span><span>✍️</span><span>🙏</span><span>🦶</span><span>🦵</span><span>🦿</span><span>💄</span>
+                        <span>💋</span><span>👄</span><span>🦷</span><span>👅</span><span>👂</span><span>🦻</span><span>👃</span><span>👣</span>
+                        <span>👁</span><span>👀</span><span>🧠</span><span>🗣</span><span>👤</span><span>👥</span><span>🐶</span><span>🐱</span>
+                        <span>🐭</span><span>🐹</span><span>🐰</span><span>🦊</span><span>🐻</span><span>🐼</span><span>🐨</span><span>🐯</span>
+                        <span>🦁</span><span>🐮</span><span>🐷</span><span>🐽</span><span>🐸</span><span>🐵</span><span>🙈</span><span>🙉</span>
+                        <span>🙊</span><span>🐒</span><span>🐔</span><span>🐧</span><span>🐦</span><span>🐤</span><span>🐣</span><span>🐥</span>
+                        <span>🦆</span><span>🦅</span><span>🦉</span><span>🦇</span><span>🐺</span><span>🐗</span><span>🐴</span><span>🦄</span>
+                        <span>🐝</span><span>🐛</span><span>🦋</span><span>🐌</span><span>🐞</span><span>🐜</span><span>🦟</span><span>🦗</span>
+                        <span>🕷</span><span>🕸</span><span>🦂</span><span>🐢</span><span>🐍</span><span>🦎</span><span>🦖</span><span>🦕</span>
+                        <span>🐙</span><span>🦑</span><span>🦐</span><span>🦞</span><span>🦀</span><span>🐡</span><span>🐠</span><span>🐟</span>
+                        <span>🐬</span><span>🐳</span><span>🐋</span><span>🦈</span><span>🐊</span><span>🐅</span><span> leopards </span><span>🐆</span>
+                        <span>🦓</span><span>🦍</span><span>🦧</span><span>🐘</span><span>🦛</span><span>🦏</span><span>🐪</span><span>🐫</span>
+                        <span>🦒</span><span>🦘</span><span>🐃</span><span>🐂</span><span>🐄</span><span>🐎</span><span>🐖</span><span>🐏</span>
+                    </div>
+                </div>
             </div>
             
             <button class="btn btn-icon" id="mic-btn"><i class="bi bi-mic"></i></button>
