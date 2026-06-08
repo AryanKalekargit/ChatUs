@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let lastMessageId = 0;
     let lastMessagesHash = ''; // Used for light-weight sidebar change detection
 
+
     // Helper to check online status
     function isOnline(lastActive) {
         if (!lastActive) return false;
@@ -236,6 +237,29 @@ document.addEventListener('DOMContentLoaded', () => {
     let pollInterval = null;
     let lastMessagesData = '';
     let lastConversationsData = '';
+    let currentFilter = 'all';
+
+    // Helper to format date as "Today", "Yesterday", or full date
+    window.formatDateHuman = function (dateString) {
+        if (!dateString) return '';
+        const d = new Date(dateString);
+        if (isNaN(d.getTime())) return dateString;
+
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+
+        const targetDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+        if (targetDate.getTime() === today.getTime()) {
+            return 'Today';
+        } else if (targetDate.getTime() === yesterday.getTime()) {
+            return 'Yesterday';
+        } else {
+            return d.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' });
+        }
+    };
 
     // Audio Recording
     let mediaRecorder;
@@ -250,13 +274,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (emojiBtn && emojiPicker) {
         emojiBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            const isOpen = !emojiPicker.classList.contains('d-none');
+            const isOpen = emojiPicker.classList.contains('show');
             if (isOpen) {
-                emojiPicker.classList.add('d-none');
+                emojiPicker.classList.remove('show');
                 emojiBackdrop?.classList.add('d-none');
                 document.body.classList.remove('immersion-active');
             } else {
-                emojiPicker.classList.remove('d-none');
+                emojiPicker.classList.add('show');
                 emojiBackdrop?.classList.remove('d-none');
                 document.body.classList.add('immersion-active');
             }
@@ -273,7 +297,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 messageInput.focus();
 
                 // Close picker and backdrop after selection
-                emojiPicker.classList.add('d-none');
+                emojiPicker.classList.remove('show');
                 emojiBackdrop?.classList.add('d-none');
                 document.body.classList.remove('immersion-active');
 
@@ -286,7 +310,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Close picker when clicking anywhere else
         document.addEventListener('click', (e) => {
             if (!emojiPicker.contains(e.target) && e.target !== emojiBtn && !emojiBtn.contains(e.target)) {
-                emojiPicker.classList.add('d-none');
+                emojiPicker.classList.remove('show');
                 emojiBackdrop?.classList.add('d-none');
                 document.body.classList.remove('immersion-active');
             }
@@ -464,6 +488,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fetch('controllers/MessageController.php?action=get_recent_conversations')
             .then(res => res.json())
             .then(res => {
+                console.log('DEBUG: Recent Conversations received:', res);
                 if (res.status === 'success') {
                     const currentData = JSON.stringify(res.data);
                     if (currentData === lastConversationsData) return; // Prevent redundant re-render
@@ -771,15 +796,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             const msgDate = new Date(msg.created_at);
                             const dateString = msgDate.toLocaleDateString([], { dateStyle: 'long' });
 
-                            // Humanize "Today" and "Yesterday"
-                            const today = new Date().toLocaleDateString([], { dateStyle: 'long' });
-                            const yesterdayDate = new Date();
-                            yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-                            const yesterday = yesterdayDate.toLocaleDateString([], { dateStyle: 'long' });
-
-                            let displayDate = dateString;
-                            if (dateString === today) displayDate = 'Today';
-                            else if (dateString === yesterday) displayDate = 'Yesterday';
+                            const displayDate = window.formatDateHuman(msg.created_at);
 
                             if (displayDate !== lastAppendedDatePill) {
                                 const dateDivider = document.createElement('div');
@@ -1395,8 +1412,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     } else {
                         let statusText = isOnlineStatus ? 'Online' : 'Offline';
                         if (!isOnlineStatus && res.data.last_active) {
-                            const d = new Date(res.data.last_active);
-                            statusText = 'last seen at ' + d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
+                            const humanDate = window.formatDateHuman(res.data.last_active);
+                            const time = new Date(res.data.last_active).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                            statusText = 'last seen ' + humanDate + ' at ' + time;
                         }
                         document.getElementById('active-chat-status').textContent = statusText;
                         document.getElementById('active-chat-status').className = 'contact-status ' + (isOnlineStatus ? 'text-success' : 'text-muted');
@@ -1486,8 +1504,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             let lastActiveStr = 'Offline';
             if (window.ACTIVE_USER_LAST_ACTIVE) {
-                const d = new Date(window.ACTIVE_USER_LAST_ACTIVE);
-                lastActiveStr = 'Last Seen: ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const humanDate = window.formatDateHuman(window.ACTIVE_USER_LAST_ACTIVE);
+                const time = new Date(window.ACTIVE_USER_LAST_ACTIVE).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                lastActiveStr = 'Last Seen: ' + humanDate + ' at ' + time;
             }
             panelSub.textContent = lastActiveStr;
             panelAbout.textContent = window.ACTIVE_USER_ABOUT || 'Hey there! I am using ChatUs.';
@@ -1672,9 +1691,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     res.data.forEach(item => {
                         const col = document.createElement('div');
                         col.className = 'col-4';
+
+                        // Human date for shared media
+                        const humanDate = window.formatDateHuman(item.created_at);
+                        const time = new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
                         col.innerHTML = `
                             <div class="ratio ratio-1x1 rounded-2 overflow-hidden border border-secondary border-opacity-25" style="cursor:pointer;">
-                                <img src="${item.image_path}" class="object-fit-cover w-100 h-100" onclick="openLightbox('${item.image_path}', '${item.sender_id}', '${item.created_at}')">
+                                <img src="${item.image_path}" 
+                                     class="object-fit-cover w-100 h-100 gallery-img" 
+                                     onclick="window.openLightbox(this)"
+                                     data-sender="${item.sender_name || 'User'}"
+                                     data-time="${humanDate} at ${time}">
                             </div>
                         `;
                         grid.appendChild(col);
@@ -1975,6 +2003,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     initResizers();
     initMicroInteractions();
+
+    // Initial Load
+    loadRecentConversations();
 });
 
 // Global Function for Once-View image
@@ -2051,10 +2082,15 @@ const lightboxSender = document.getElementById('lightbox-sender-name');
 const lightboxMetaTime = document.getElementById('lightbox-timestamp');
 
 window.openLightbox = function (imgElement) {
-    // Gather all gallery images dynamically from DOM
+    // Gather all gallery images dynamically from DOM (now including shared media grid)
     const allImages = Array.from(document.querySelectorAll('.gallery-img'));
     currentGalleryImages = allImages;
     currentGalleryIndex = allImages.indexOf(imgElement);
+
+    // Safety fallback
+    if (currentGalleryIndex === -1) {
+        currentGalleryIndex = 0;
+    }
 
     updateLightboxUI();
     lightboxOverlay.classList.remove('d-none');

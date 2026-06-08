@@ -203,42 +203,6 @@ $theme = $currentUser['theme_preference'] ?? 'dark';
             <div class="input-wrapper position-relative">
                 <button class="btn btn-icon p-0 me-2" id="emoji-btn" type="button"><i class="bi bi-emoji-smile"></i></button>
                 <input type="text" id="message-input" class="chat-input" placeholder="Type an encrypted message...">
-                
-                <!-- Custom Emoji Picker -->
-                <div id="emoji-picker" class="emoji-picker d-none">
-                    <div class="emoji-list">
-                        <span>😀</span><span>😃</span><span>😄</span><span>😁</span><span>😆</span><span>😅</span><span>😂</span><span>🤣</span>
-                        <span>😊</span><span>😇</span><span>🙂</span><span>🙃</span><span>😉</span><span>😌</span><span>😍</span><span>🥰</span>
-                        <span>😘</span><span>😗</span><span>😙</span><span>😚</span><span>😋</span><span>😛</span><span>😜</span><span>🤪</span>
-                        <span>🤨</span><span>🧐</span><span>🤓</span><span>😎</span><span>🤩</span><span>🥳</span><span>😏</span><span>😒</span>
-                        <span>😞</span><span>😔</span><span>😟</span><span>😕</span><span>🙁</span><span>☹️</span><span>😣</span><span>😖</span>
-                        <span>😫</span><span>😩</span><span>🥺</span><span>😢</span><span>😭</span><span>😤</span><span>😠</span><span>😡</span>
-                        <span>🤯</span><span>😳</span><span>🥵</span><span>🥶</span><span>😱</span><span>😨</span><span>😰</span><span>😥</span>
-                        <span>😓</span><span>🤗</span><span>🤔</span><span>🤭</span><span>🤫</span><span>🤥</span><span>😶</span><span>😐</span>
-                        <span>😑</span><span>😬</span><span>🙄</span><span>😯</span><span>😦</span><span>😧</span><span>😮</span><span>😲</span>
-                        <span>🥱</span><span>😴</span><span>🤤</span><span>😪</span><span>😵</span><span>🤐</span><span>🥴</span><span>🤢</span>
-                        <span>🤮</span><span>🤧</span><span>😷</span><span>🤒</span><span>🤕</span><span>🤑</span><span>🤠</span><span>😈</span>
-                        <span>👿</span><span>👹</span><span>👺</span><span>🤡</span><span>💩</span><span>👻</span><span>💀</span><span>☠️</span>
-                        <span>👽</span><span>👾</span><span>🤖</span><span>🎃</span><span>😺</span><span>😸</span><span>😻</span><span>😼</span>
-                        <span>😽</span><span>🙀</span><span>😿</span><span>😾</span><span>🤲</span><span>👐</span><span>🙌</span><span>👏</span>
-                        <span>🤝</span><span>👍</span><span>👎</span><span>👊</span><span>✊</span><span>🤛</span><span>🤜</span><span>🤞</span>
-                        <span>✌️</span><span>🤟</span><span>🤘</span><span>👌</span><span>👈</span><span>👉</span><span>👆</span><span>👇</span>
-                        <span>☝️</span><span>✋</span><span>🤚</span><span>🖐</span><span>🖖</span><span>👋</span><span>🤙</span><span>💪</span>
-                        <span>🦾</span><span>🖕</span><span>✍️</span><span>🙏</span><span>🦶</span><span>🦵</span><span>🦿</span><span>💄</span>
-                        <span>💋</span><span>👄</span><span>🦷</span><span>👅</span><span>👂</span><span>🦻</span><span>👃</span><span>👣</span>
-                        <span>👁</span><span>👀</span><span>🧠</span><span>🗣</span><span>👤</span><span>👥</span><span>🐶</span><span>🐱</span>
-                        <span>🐭</span><span>🐹</span><span>🐰</span><span>🦊</span><span>🐻</span><span>🐼</span><span>🐨</span><span>🐯</span>
-                        <span>🦁</span><span>🐮</span><span>🐷</span><span>🐽</span><span>🐸</span><span>🐵</span><span>🙈</span><span>🙉</span>
-                        <span>🙊</span><span>🐒</span><span>🐔</span><span>🐧</span><span>🐦</span><span>🐤</span><span>🐣</span><span>🐥</span>
-                        <span>🦆</span><span>🦅</span><span>🦉</span><span>🦇</span><span>🐺</span><span>🐗</span><span>🐴</span><span>🦄</span>
-                        <span>🐝</span><span>🐛</span><span>🦋</span><span>🐌</span><span>🐞</span><span>🐜</span><span>🦟</span><span>🦗</span>
-                        <span>🕷</span><span>🕸</span><span>🦂</span><span>🐢</span><span>🐍</span><span>🦎</span><span>🦖</span><span>🦕</span>
-                        <span>🐙</span><span>🦑</span><span>🦐</span><span>🦞</span><span>🦀</span><span>🐡</span><span>🐠</span><span>🐟</span>
-                        <span>🐬</span><span>🐳</span><span>🐋</span><span>🦈</span><span>🐊</span><span>🐅</span><span> leopards </span><span>🐆</span>
-                        <span>🦓</span><span>🦍</span><span>🦧</span><span>🐘</span><span>🦛</span><span>🦏</span><span>🐪</span><span>🐫</span>
-                        <span>🦒</span><span>🦘</span><span>🐃</span><span>🐂</span><span>🐄</span><span>🐎</span><span>🐖</span><span>🐏</span>
-                    </div>
-                </div>
             </div>
             
             <button class="btn btn-icon" id="mic-btn"><i class="bi bi-mic"></i></button>
@@ -570,6 +534,26 @@ $theme = $currentUser['theme_preference'] ?? 'dark';
 </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="assets/js/theme.js?v=<?php echo time(); ?>"></script>
+    <!-- Custom Emoji Picker (Body Level for Isolation) -->
+    <div id="emoji-picker" class="emoji-picker">
+        <div class="emoji-list">
+            <span>😀</span><span>😃</span><span>😄</span><span>😁</span><span>😆</span><span>😅</span><span>😂</span><span>🤣</span>
+            <span>😊</span><span>😇</span><span>🙂</span><span>🙃</span><span>😉</span><span>😌</span><span>😍</span><span>🥰</span>
+            <span>😘</span><span>😗</span><span>😙</span><span>😚</span><span>😋</span><span>😛</span><span>😜</span><span>🤪</span>
+            <span>🤨</span><span>🧐</span><span>🤓</span><span>😎</span><span>🤩</span><span>🥳</span><span>😏</span><span>😒</span>
+            <span>😞</span><span>😔</span><span>😟</span><span>😕</span><span>🙁</span><span>☹️</span><span>😣</span><span>😖</span>
+            <span>😫</span><span>😩</span><span>🥺</span><span>😢</span><span>😭</span><span>😤</span><span>😠</span><span>😡</span>
+            <span>🤯</span><span>😳</span><span>🥵</span><span>🥶</span><span>😱</span><span>😨</span><span>😰</span><span>😥</span>
+            <span>😓</span><span>🤗</span><span>🤔</span><span>🤭</span><span>🤫</span><span>🤥</span><span>😶</span><span>😐</span>
+            <span>😑</span><span>😬</span><span>🙄</span><span>😯</span><span>😦</span><span>😧</span><span>😮</span><span>😲</span>
+            <span>🥱</span><span>😴</span><span>🤤</span><span>😪</span><span>😵</span><span>🤐</span><span>🥴</span><span>🤢</span>
+            <span>🤮</span><span>🤧</span><span>😷</span><span>🤒</span><span>🤕</span><span>🤑</span><span>🤠</span><span>😈</span>
+        </div>
+    </div>
+
+    <!-- UI Overlays -->
+    <div id="emoji-backdrop" class="modal-backdrop fade show d-none" style="z-index: 2000;"></div>
+    
     <script src="assets/js/chat.js?v=<?php echo time(); ?>"></script>
 </body>
 </html>

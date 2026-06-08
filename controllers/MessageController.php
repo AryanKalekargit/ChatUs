@@ -21,18 +21,9 @@ $userModel = new User($db);
 $groupModel = new Group($db);
 
 $action = $_REQUEST['action'] ?? '';
+error_log("ChatUs DEBUG: Action=$action, UserID=" . ($_SESSION['user_id'] ?? 'NONE'));
 
 switch ($action) {
-    case 'search_users':
-        $term = $_GET['term'] ?? '';
-        $stmt = $userModel->searchUsers($_SESSION['user_id'], $term);
-        $users = [];
-        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $users[] = $row;
-        }
-        echo json_encode(['status' => 'success', 'data' => $users]);
-        break;
-
     case 'get_recent_conversations':
         $stmt = $messageModel->getRecentConversations($_SESSION['user_id']);
         $conversations = [];
@@ -40,8 +31,8 @@ switch ($action) {
             if (!empty($row['encrypted_message'])) {
                 $decrypted = Crypto::decrypt($row['encrypted_message']);
                 // Create a snippet
-                $snippet = mb_substr($decrypted !== false ? $decrypted : '[Decryption Failed]', 0, 30);
-                if ($decrypted !== false && mb_strlen($decrypted) > 30) $snippet .= '...';
+                $snippet = substr($decrypted !== false ? $decrypted : '[Decryption Failed]', 0, 30);
+                if ($decrypted !== false && strlen($decrypted) > 30) $snippet .= '...';
                 $row['last_message'] = $snippet;
             } elseif ($row['image_path']) {
                 $row['last_message'] = '📸 Image';
