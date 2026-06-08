@@ -78,12 +78,16 @@ $theme = $currentUser['theme_preference'] ?? 'dark';
             <button class="btn btn-sm text-muted filter-chip" data-filter="user" style="border-radius: 20px; width: 40px; height: 28px; padding: 0; display: flex; align-items: center; justify-content: center;" title="Chats"><i class="bi bi-chat-fill"></i></button>
         </div>
 
-        <div class="contact-list" id="contact-list">
+        <div class="contact-list" id="contact-list" style="overflow-y: auto; flex-grow: 1;">
             <!-- Populated via AJAX -->
             <div class="p-3 text-center text-muted spinner-border-wrapper">
                 <div class="spinner-border text-info" role="status"></div>
                 <div class="mt-2">Loading contacts...</div>
             </div>
+        </div>
+
+        <div id="search-results-list" class="contact-list d-none" style="overflow-y: auto; flex-grow: 1;">
+            <!-- Search results populated here -->
         </div>
 
         <!-- User Self-Profile Footer -->

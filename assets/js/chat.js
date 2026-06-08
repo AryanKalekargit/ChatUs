@@ -12,6 +12,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Store current active user/group data for live updates
     window.ACTIVE_USER_PROFILE_IMAGE = null;
     window.ACTIVE_GROUP_IMAGE = null;
+    let lastMessageId = 0;
+    let lastMessagesHash = ''; // Used for light-weight sidebar change detection
 
     // Helper to check online status
     function isOnline(lastActive) {
@@ -293,13 +295,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Helper for Avatars (Initials fallback)
     window.getAvatarHtml = function (name, imageUrl, sizeClass = '') {
-        if (imageUrl && imageUrl !== 'assets/images/default.png') {
-            return `<img src="${imageUrl}" class="avatar ${sizeClass}">`;
-        }
         const initials = (name || '?').substring(0, 1).toUpperCase();
         const colors = ['#00f2ff', '#ff00ff', '#00ff66', '#ff9900', '#7700ff', '#ff3300'];
         const charCodeSum = (name || '').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
         const color = colors[charCodeSum % colors.length];
+
+        if (imageUrl && imageUrl !== 'assets/images/default.png') {
+            return `<img src="${imageUrl}" class="avatar ${sizeClass}" onerror="this.outerHTML='<div class=\'avatar-initials ${sizeClass}\' style=\'background-color: ${color}\'>${initials}</div>'">`;
+        }
         return `<div class="avatar-initials ${sizeClass}" style="background-color: ${color}">${initials}</div>`;
     };
 
@@ -322,8 +325,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const newGroupName = document.getElementById('new-group-name');
     let allUsers = [];
 
-    // Sidebar Filter Logic
-    let currentFilter = 'all';
     document.querySelectorAll('.filter-chip').forEach(chip => {
         chip.addEventListener('click', () => {
             document.querySelectorAll('.filter-chip').forEach(c => {
@@ -333,10 +334,89 @@ document.addEventListener('DOMContentLoaded', () => {
             chip.classList.remove('text-muted');
             chip.classList.add('text-primary', 'border-primary');
             currentFilter = chip.getAttribute('data-filter');
-            lastConversationsData = ''; // Force re-render on filter change
+            lastConversationsData = '';
             loadRecentConversations();
         });
     });
+
+    // --- SEARCH LOGIC ---
+    const searchInput = document.getElementById('user-search');
+    const searchResultsList = document.getElementById('search-results-list');
+
+    if (searchInput) {
+        searchInput.addEventListener('input', () => {
+            const term = searchInput.value.trim();
+            if (term.length < 2) {
+                searchResultsList.classList.add('d-none');
+                contactList.classList.remove('d-none');
+                return;
+            }
+
+            fetch(`controllers/MessageController.php?action=search_users&term=${encodeURIComponent(term)}`)
+                .then(res => res.json())
+                .then(res => {
+                    if (res.status === 'success' && searchInput.value.trim() === term) {
+                        searchResultsList.innerHTML = '';
+                        searchResultsList.classList.remove('d-none');
+                        contactList.classList.add('d-none');
+
+                        if (res.data.length === 0) {
+                            searchResultsList.innerHTML = '<div class="text-muted small p-4 text-center">No results found</div>';
+                            return;
+                        }
+
+                        res.data.forEach(item => {
+                            const div = document.createElement('div');
+                            const isGroup = (item.type === 'group');
+
+                            div.className = 'contact-item' + (activeUserId == item.id ? ' active' : '');
+
+                            const name = isGroup ? item.name : item.username;
+                            const image = isGroup ? item.group_image : item.profile_image;
+                            const imgHtml = getAvatarHtml(name, image);
+
+                            if (isGroup) {
+                                div.innerHTML = `
+                                    <div class="avatar-wrapper">
+                                        ${imgHtml}
+                                        <span class="status-dot group"></span>
+                                    </div>
+                                    <div class="contact-info">
+                                        <h6 class="contact-name m-0">${name}</h6>
+                                        <span class="contact-status">Group Chat</span>
+                                    </div>
+                                `;
+                                div.onclick = () => {
+                                    selectContact(null, item, div);
+                                    searchInput.value = '';
+                                    searchResultsList.classList.add('d-none');
+                                    contactList.classList.remove('d-none');
+                                };
+                            } else {
+                                const isOnlineStatus = isOnline(item.last_active);
+                                div.innerHTML = `
+                                    <div class="avatar-wrapper">
+                                        ${imgHtml}
+                                        <span class="status-dot ${isOnlineStatus ? 'online' : 'offline'}"></span>
+                                    </div>
+                                    <div class="contact-info">
+                                        <h6 class="contact-name m-0">${name}</h6>
+                                        <span class="contact-status">${isOnlineStatus ? 'Online' : 'Offline'}</span>
+                                    </div>
+                                `;
+                                div.onclick = () => {
+                                    selectContact(item, null, div);
+                                    searchInput.value = '';
+                                    searchResultsList.classList.add('d-none');
+                                    contactList.classList.remove('d-none');
+                                };
+                            }
+                            searchResultsList.appendChild(div);
+                        });
+                    }
+                });
+        });
+    }
 
     // Sync Mobile Bottom Nav
     document.querySelectorAll('.mobile-bottom-nav .nav-item[data-filter]').forEach(btn => {
@@ -560,6 +640,11 @@ document.addEventListener('DOMContentLoaded', () => {
             window.playZenithSound('pop');
         }
 
+        // Reset incremental fetch state
+        lastMessageId = 0;
+        lastMessagesData = '';
+        chatMessages.innerHTML = ''; // Clear for new conversation
+
         if (user) {
             activeUserId = user.id;
             activeGroupId = null;
@@ -659,8 +744,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!activeUserId && !activeGroupId) return;
 
         const targetUrl = activeGroupId
-            ? `controllers/MessageController.php?action=fetch_messages&group_id=${activeGroupId}`
-            : `controllers/MessageController.php?action=fetch_messages&receiver_id=${activeUserId}`;
+            ? `controllers/MessageController.php?action=fetch_messages&group_id=${activeGroupId}&last_id=${lastMessageId}`
+            : `controllers/MessageController.php?action=fetch_messages&receiver_id=${activeUserId}&last_id=${lastMessageId}`;
 
         fetch(targetUrl)
             .then(res => {
@@ -669,45 +754,39 @@ document.addEventListener('DOMContentLoaded', () => {
             })
             .then(res => {
                 console.log('DEBUG: Messages received', res);
-                if (res.status === 'success') {
-                    const currentData = JSON.stringify(res.data);
-                    if (currentData === lastMessagesData) return; // Abort DOM destruction if no changes
-                    lastMessagesData = currentData;
+                if (res.status === 'success' && Array.isArray(res.data) && res.data.length > 0) {
+                    // Check if we already have these messages (shouldn't happen with last_id, but safety first)
+                    const newMessages = res.data.filter(msg => msg.id > lastMessageId);
+                    if (newMessages.length === 0) return;
 
-                    // Check scroll state
-                    const isAtBottom = chatMessages.scrollHeight - chatMessages.scrollTop <= chatMessages.clientHeight + 50;
-                    const oldScrollTop = chatMessages.scrollTop;
+                    const isAtBottom = chatMessages.scrollHeight - chatMessages.scrollTop <= chatMessages.clientHeight + 150;
 
-                    chatMessages.innerHTML = '';
-                    let lastDateString = null;
+                    let lastAppendedDatePill = chatMessages.querySelector('.date-divider:last-child .date-pill')?.textContent;
 
-                    if (!Array.isArray(res.data)) {
-                        console.error('DEBUG: res.data is not an array', res.data);
-                        return;
-                    }
-
-                    res.data.forEach(msg => {
+                    newMessages.forEach(msg => {
                         try {
+                            // Update lastMessageId
+                            if (msg.id > lastMessageId) lastMessageId = msg.id;
+
                             const msgDate = new Date(msg.created_at);
                             const dateString = msgDate.toLocaleDateString([], { dateStyle: 'long' });
 
-                            if (dateString !== lastDateString) {
+                            // Humanize "Today" and "Yesterday"
+                            const today = new Date().toLocaleDateString([], { dateStyle: 'long' });
+                            const yesterdayDate = new Date();
+                            yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+                            const yesterday = yesterdayDate.toLocaleDateString([], { dateStyle: 'long' });
+
+                            let displayDate = dateString;
+                            if (dateString === today) displayDate = 'Today';
+                            else if (dateString === yesterday) displayDate = 'Yesterday';
+
+                            if (displayDate !== lastAppendedDatePill) {
                                 const dateDivider = document.createElement('div');
                                 dateDivider.className = 'date-divider';
-
-                                // Humanize "Today" and "Yesterday"
-                                const today = new Date().toLocaleDateString([], { dateStyle: 'long' });
-                                const yesterdayDate = new Date();
-                                yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-                                const yesterday = yesterdayDate.toLocaleDateString([], { dateStyle: 'long' });
-
-                                let displayDate = dateString;
-                                if (dateString === today) displayDate = 'Today';
-                                else if (dateString === yesterday) displayDate = 'Yesterday';
-
                                 dateDivider.innerHTML = `<span class="date-pill">${displayDate}</span>`;
                                 chatMessages.appendChild(dateDivider);
-                                lastDateString = dateString;
+                                lastAppendedDatePill = displayDate;
                             }
 
                             // For groups, sender_id is not me, but it could be anyone else
@@ -787,22 +866,18 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     });
 
-                    if (isAtBottom) chatMessages.scrollTop = chatMessages.scrollHeight;
-                    else chatMessages.scrollTop = oldScrollTop;
+                    if (isAtBottom) {
+                        chatMessages.scrollTop = chatMessages.scrollHeight;
+                    }
 
-                    if (res.data.length > 0) {
-                        const lastMsg = res.data[res.data.length - 1];
-                        if (lastMsg.sender_id != window.CURRENT_USER_ID) {
-                            window.playZenithSound('received');
-                        }
+                    const latestMsg = res.data[res.data.length - 1];
+                    if (latestMsg.sender_id != window.CURRENT_USER_ID) {
+                        window.playZenithSound('received');
                     }
                 }
             })
             .catch(err => {
-                console.error('CRITICAL: Failed to load or parse messages:', err);
-                // Add more details to the console to help debug
-                if (err.stack) console.error('Stack trace:', err.stack);
-                if (window.showAppToast) window.showAppToast('Sync failed!', 'danger');
+                console.error('CRITICAL: Failed to load messages:', err);
             });
     }
 

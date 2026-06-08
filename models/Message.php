@@ -93,16 +93,21 @@ class Message {
     }
 
     // Get chat history between two users Let's get last 200
-    public function getConversation($user1, $user2) {
+    public function getConversation($user1, $user2, $last_id = 0) {
         $query = "SELECT * FROM (
                     SELECT m.id, m.sender_id, m.receiver_id, m.encrypted_message, 
                            m.image_path, m.audio_path, m.once_view, m.viewed, m.status, m.created_at,
                            u.username as sender_name
                     FROM " . $this->table_name . " m
                     LEFT JOIN users u ON m.sender_id = u.id
-                    WHERE (m.sender_id = :u1 AND m.receiver_id = :u1_msg2) 
-                       OR (m.sender_id = :u2 AND m.receiver_id = :u2_msg1)
-                    ORDER BY m.created_at DESC
+                    WHERE ((m.sender_id = :u1 AND m.receiver_id = :u1_msg2) 
+                        OR (m.sender_id = :u2 AND m.receiver_id = :u2_msg1))";
+        
+        if ($last_id > 0) {
+            $query .= " AND m.id > :last_id";
+        }
+
+        $query .= " ORDER BY m.created_at DESC
                     LIMIT 200
                   ) as sub
                   ORDER BY created_at ASC";
@@ -112,27 +117,38 @@ class Message {
         $stmt->bindParam(":u1_msg2", $user2);
         $stmt->bindParam(":u2", $user2);
         $stmt->bindParam(":u2_msg1", $user1);
+        if ($last_id > 0) {
+            $stmt->bindParam(":last_id", $last_id);
+        }
         
         $stmt->execute();
         return $stmt;
     }
 
     // Get Group Conversation
-    public function getGroupConversation($group_id) {
+    public function getGroupConversation($group_id, $last_id = 0) {
         $query = "SELECT * FROM (
                     SELECT m.id, m.sender_id, m.group_id, m.encrypted_message, 
                            m.image_path, m.audio_path, m.once_view, m.viewed, m.status, m.created_at,
                            u.username as sender_name, u.profile_image
                     FROM " . $this->table_name . " m
                     LEFT JOIN users u ON m.sender_id = u.id
-                    WHERE m.group_id = :group_id
-                    ORDER BY m.id DESC
+                    WHERE m.group_id = :group_id";
+        
+        if ($last_id > 0) {
+            $query .= " AND m.id > :last_id";
+        }
+
+        $query .= " ORDER BY m.id DESC
                     LIMIT 100
                   ) as sub
                   ORDER BY id ASC";
 
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(":group_id", $group_id);
+        if ($last_id > 0) {
+            $stmt->bindParam(":last_id", $last_id);
+        }
         $stmt->execute();
         return $stmt;
     }
@@ -198,6 +214,7 @@ class Message {
                 
                 UNION
                 
+                -- Include all groups the user is member of, regardless of messages
                 SELECT
                     'group' AS type,
                     g_all.id AS target_id,
@@ -210,7 +227,7 @@ class Message {
             LEFT JOIN messages m ON m.id = c.last_message_id
             LEFT JOIN users u ON (c.type = 'user' AND c.target_id = u.id)
             LEFT JOIN groups g ON (c.type = 'group' AND c.target_id = g.id)
-            ORDER BY COALESCE(m.created_at, '1970-01-01') DESC
+            ORDER BY CASE WHEN m.created_at IS NULL THEN 1 ELSE 0 END, m.created_at DESC
         ";
 
         $stmt = $this->conn->prepare($query);

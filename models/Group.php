@@ -140,5 +140,20 @@ class Group {
         $stmt->execute(['u1' => $user_id1, 'u2' => $user_id2]);
         return $stmt;
     }
+
+    public function searchGroups($user_id, $term) {
+        // Search for groups the user is a member of that match the term
+        $term = '%' . $term . '%';
+        $query = "SELECT g.id, g.name, g.group_image, 'group' as type
+                  FROM " . $this->table_name . " g
+                  JOIN " . $this->members_table . " gm ON g.id = gm.group_id
+                  WHERE gm.user_id = :user_id AND g.name ILIKE :term
+                  LIMIT 10";
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':user_id', $user_id);
+        $stmt->bindParam(':term', $term);
+        $stmt->execute();
+        return $stmt;
+    }
 }
 ?>

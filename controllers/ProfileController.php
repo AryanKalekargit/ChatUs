@@ -49,11 +49,19 @@ switch ($action) {
             $fileObj = $_FILES['profile_image'];
             $allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
             
-            if ($fileObj['size'] <= 2097152 && in_array($fileObj['type'], $allowedTypes)) { // 2MB
-                $imageData = file_get_contents($fileObj['tmp_name']);
-                if ($imageData !== false) {
-                    $base64 = base64_encode($imageData);
-                    $image_path = "data:{$fileObj['type']};base64,{$base64}";
+            if ($fileObj['size'] <= 5120000 && in_array($fileObj['type'], $allowedTypes)) { // 5MB
+                $ext = pathinfo($fileObj['name'], PATHINFO_EXTENSION);
+                if (empty($ext)) $ext = 'jpg';
+                
+                $filename = 'pfp_' . $_SESSION['user_id'] . '_' . time() . '.' . $ext;
+                $targetPath = dirname(__DIR__) . '/uploads/profiles/' . $filename;
+                
+                if (!is_dir(dirname($targetPath))) {
+                    mkdir(dirname($targetPath), 0755, true);
+                }
+
+                if (move_uploaded_file($fileObj['tmp_name'], $targetPath)) {
+                    $image_path = 'uploads/profiles/' . $filename;
                 }
             }
         }

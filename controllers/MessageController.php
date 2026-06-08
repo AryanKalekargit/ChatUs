@@ -4,8 +4,10 @@ require_once dirname(__DIR__) . '/config/session.php';
 header('Content-Type: application/json');
 
 require_once dirname(__DIR__) . '/config/database.php';
+require_once dirname(__DIR__) . '/encryption/crypto.php';
 require_once dirname(__DIR__) . '/models/Message.php';
 require_once dirname(__DIR__) . '/models/User.php';
+require_once dirname(__DIR__) . '/models/Group.php';
 
 // Auth Check
 if (!isset($_SESSION['user_id'])) {
@@ -16,6 +18,7 @@ if (!isset($_SESSION['user_id'])) {
 $db = (new Database())->getConnection();
 $messageModel = new Message($db);
 $userModel = new User($db);
+$groupModel = new Group($db);
 
 $action = $_REQUEST['action'] ?? '';
 
@@ -76,17 +79,26 @@ switch ($action) {
                 ? ['image/jpeg', 'image/png', 'image/jpg']
                 : ['audio/webm', 'audio/mp3', 'audio/wav', 'audio/ogg', 'audio/mpeg'];
 
-            $maxSize = $type === 'image' ? 2097152 : 5242880; // 2MB images, 5MB audio
+            $maxSize = $type === 'image' ? 5120000 : 10485760; // 5MB images, 10MB audio (Increased for better UX)
 
             if ($fileObj['error'] === UPLOAD_ERR_OK && $fileObj['size'] <= $maxSize) {
-                $mimeType = $fileObj['type'];
-                // Fallback MIME for audio blobs lacking type
-                if ($type === 'audio' && empty($mimeType)) $mimeType = 'audio/webm';
+                if (!in_array($fileObj['type'], $allowedTypes)) return null;
 
-                $fileData = file_get_contents($fileObj['tmp_name']);
-                if ($fileData !== false) {
-                    $base64 = base64_encode($fileData);
-                    return "data:{$mimeType};base64,{$base64}";
+                $ext = pathinfo($fileObj['name'], PATHINFO_EXTENSION);
+                if (empty($ext)) {
+                    $ext = $type === 'image' ? 'jpg' : 'webm';
+                }
+                
+                $dir = $type === 'image' ? '/uploads/images/' : '/uploads/audios/';
+                $filename = uniqid('msg_', true) . '.' . $ext;
+                $targetPath = dirname(__DIR__) . $dir . $filename;
+                
+                if (!is_dir(dirname($targetPath))) {
+                    mkdir(dirname($targetPath), 0755, true);
+                }
+
+                if (move_uploaded_file($fileObj['tmp_name'], $targetPath)) {
+                    return 'uploads/' . ($type === 'image' ? 'images/' : 'audios/') . $filename;
                 }
             }
             return null;
@@ -131,6 +143,7 @@ switch ($action) {
     case 'fetch_messages':
         $receiver_id = $_GET['receiver_id'] ?? null;
         $group_id = $_GET['group_id'] ?? null;
+        $last_id = $_GET['last_id'] ?? 0;
         
         if (!$receiver_id && !$group_id) {
             echo json_encode(['status' => 'error', 'message' => 'No target specified']);
@@ -138,11 +151,10 @@ switch ($action) {
         }
 
         if ($group_id) {
-            error_log("DEBUG: Fetching messages for group_id: " . $group_id);
-            $stmt = $messageModel->getGroupConversation($group_id);
+            $stmt = $messageModel->getGroupConversation($group_id, $last_id);
         } else {
             $messageModel->markDirectMessagesViewed($receiver_id, $_SESSION['user_id']);
-            $stmt = $messageModel->getConversation($_SESSION['user_id'], $receiver_id);
+            $stmt = $messageModel->getConversation($_SESSION['user_id'], $receiver_id, $last_id);
         }
         $messages = [];
         
@@ -182,6 +194,31 @@ switch ($action) {
             $media[] = $row;
         }
         echo json_encode(['status' => 'success', 'data' => $media]);
+        break;
+
+    case 'search_users':
+        $term = $_GET['term'] ?? '';
+        if (empty($term)) {
+            echo json_encode(['status' => 'success', 'data' => []]);
+            break;
+        }
+        
+        $results = [];
+        
+        // Search Users
+        $stmtUsers = $userModel->searchUsers($_SESSION['user_id'], $term);
+        while ($row = $stmtUsers->fetch(PDO::FETCH_ASSOC)) {
+            $row['type'] = 'user';
+            $results[] = $row;
+        }
+        
+        // Search Groups
+        $stmtGroups = $groupModel->searchGroups($_SESSION['user_id'], $term);
+        while ($row = $stmtGroups->fetch(PDO::FETCH_ASSOC)) {
+            $results[] = $row;
+        }
+
+        echo json_encode(['status' => 'success', 'data' => $results]);
         break;
 
     default:
